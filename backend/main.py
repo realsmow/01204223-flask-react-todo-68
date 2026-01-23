@@ -1,90 +1,59 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from flask_migrate import Migrate
+
+from models import db, TodoItem, Comment
 
 app = Flask(__name__)
 CORS(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todos.db'
 
-class Base(DeclarativeBase):
-  pass
+db.init_app(app)
+migrate = Migrate(app, db)
 
-db = SQLAlchemy(app, model_class=Base)
-
-class TodoItem(db.Model):
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    title: Mapped[str] = mapped_column(String(100))
-    done: Mapped[bool] = mapped_column(default=False)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "done": self.done
-        }
-
-with app.app_context():
-    db.create_all()
-
-todo_list = [
-    { "id": 1,
-      "title": 'Learn Flask',
-      "done": True },
-    { "id": 2,
-      "title": 'Build a Flask App',
-      "done": False },
-]
+# ------------------ API ------------------
 
 @app.route('/api/todos/', methods=['GET'])
 def get_todos():
-    return jsonify(todo_list)
-
-def new_todo(data):
-    if len(todo_list) == 0:
-        id = 1
-    else:
-        id = 1 + max([todo['id'] for todo in todo_list])
-
-    if 'title' not in data:
-        return None
-    
-    return {
-        "id": id,
-        "title": data['title'],
-        "done": getattr(data, 'done', False),
-    }
+    todos = TodoItem.query.all()
+    return jsonify([todo.to_dict() for todo in todos])
 
 @app.route('/api/todos/', methods=['POST'])
 def add_todo():
     data = request.get_json()
-    todo = new_todo(data)
-    if todo:
-        todo_list.append(todo)
-        return jsonify(todo)
-    else:
-        # return http response code 400 for bad requests
-        return (jsonify({'error': 'Invalid todo data'}), 400)  
-    
+    if not data or 'title' not in data:
+        return jsonify({'error': 'Title is required'}), 400
+
+    todo = TodoItem(title=data['title'])
+    db.session.add(todo)
+    db.session.commit()
+    return jsonify(todo.to_dict()), 201
 
 @app.route('/api/todos/<int:id>/toggle/', methods=['PATCH'])
 def toggle_todo(id):
-    todos = [todo for todo in todo_list if todo['id'] == id]
-    if not todos:
-        return (jsonify({'error': 'Todo not found'}), 404)
-    todo = todos[0]
-    todo['done'] = not todo['done']
-    return jsonify(todo)
-
+    todo = TodoItem.query.get_or_404(id)
+    todo.done = not todo.done
+    db.session.commit()
+    return jsonify(todo.to_dict())
 
 @app.route('/api/todos/<int:id>/', methods=['DELETE'])
 def delete_todo(id):
-    global todo_list
-    todos = [todo for todo in todo_list if todo['id'] == id]
-    if not todos:
-        return (jsonify({'error': 'Todo not found'}), 404)
-    todo_list = [todo for todo in todo_list if todo['id'] != id]
+    todo = TodoItem.query.get_or_404(id)
+    db.session.delete(todo)
+    db.session.commit()
     return jsonify({'message': 'Todo deleted successfully'})
+
+@app.route('/api/todos/<int:todo_id>/comments/', methods=['POST'])
+def add_comment(todo_id):
+    todo = TodoItem.query.get_or_404(todo_id)
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return jsonify({'error': 'Comment message is required'}), 400
+
+    comment = Comment(message=data['message'], todo=todo)
+    db.session.add(comment)
+    db.session.commit()
+
+    return jsonify(comment.to_dict()), 201
