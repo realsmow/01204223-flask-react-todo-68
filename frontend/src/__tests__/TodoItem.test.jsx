@@ -17,6 +17,7 @@ describe('TodoItem', () => {
     );
     
     expect(screen.getByText('Sample Todo')).toBeInTheDocument();
+    expect(screen.getByText('No comments')).toBeInTheDocument();
   });
   it('renders with comments correctly', () => {
     const todoWithComment = {
