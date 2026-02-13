@@ -20,20 +20,20 @@ function TodoItem({ todo, toggleDone, deleteTodo, addNewComment }) {
       </button>
 
       {/* แสดง comments */}
-      {todo.comments.length === 0 ? ( 
-        <p>No comments</p>
+      {todo.comments.length === 0 ? (
+  <p>No comments</p>
       ) : (
-        <>
-        <b>Comments:</b>
-        <ul>
-          {todo.comments.map(comment => (
-            <li key={comment.id}>
-              {comment.message}
-          </li>
-          ))}
-        </ul>
-      </>
-        )}
+      <>
+        <p>{todo.comments.length} Comments</p>
+          <ul>
+            {todo.comments.map(comment => (
+              <li key={comment.id}>
+                {comment.message}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
 
       <div className="new-comment-forms">
