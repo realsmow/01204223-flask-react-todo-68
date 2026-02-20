@@ -1,138 +1,48 @@
-import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './App.css'
-import TodoItem from './TodoItem.jsx'
+import LoginForm from './LoginForm.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
+import PrivateRoute from "./PrivateRoute";
+
+import TodoList from './TodoList.jsx'
 
 function App() {
-  const TODOLIST_API_URL = 'http://localhost:5000/api/todos/'
-
-  const [todoList, setTodoList] = useState([])
-  const [newTitle, setNewTitle] = useState("")
-
-  useEffect(() => {
-    fetchTodoList()
-  }, [])
-
-  async function fetchTodoList() {
-    try {
-      const response = await fetch(TODOLIST_API_URL)
-      if (!response.ok) throw new Error('Network error')
-
-      const data = await response.json()
-      setTodoList(data)
-    } catch (err) {
-      alert("Failed to fetch todo list from backend.")
-    }
-  }
-
-  async function toggleDone(id) {
-    const url = `${TODOLIST_API_URL}${id}/toggle/`
-
-    try {
-      const response = await fetch(url, { method: 'PATCH' })
-
-      if (response.ok) {
-        const updatedTodo = await response.json()
-
-        setTodoList(prev =>
-          prev.map(todo =>
-            todo.id === id ? updatedTodo : todo
-          )
-        )
-      }
-    } catch (error) {
-      console.error("Error toggling todo:", error)
-    }
-  }
-
-  async function deleteTodo(id) {
-    const url = `${TODOLIST_API_URL}${id}/`
-
-    try {
-      const response = await fetch(url, { method: 'DELETE' })
-
-      if (response.ok) {
-        setTodoList(prev =>
-          prev.filter(todo => todo.id !== id)
-        )
-      }
-    } catch (error) {
-      console.error("Error deleting todo:", error)
-    }
-  }
-
-  async function addNewTodo() {
-    if (!newTitle.trim()) return
-
-    try {
-      const response = await fetch(TODOLIST_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title: newTitle }),
-      })
-
-      if (response.ok) {
-        const newTodo = await response.json()
-
-        setTodoList(prev => [...prev, newTodo])
-        setNewTitle("")
-      }
-    } catch (error) {
-      console.error("Error adding new todo:", error)
-    }
-  }
-
-  async function addNewComment(todoId, newComment) {
-    if (!newComment.trim()) return
-
-    try {
-      const url = `${TODOLIST_API_URL}${todoId}/comments/`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: newComment }),
-      })
-
-      if (response.ok) {
-        await fetchTodoList()
-      }
-    } catch (error) {
-      console.error("Error adding new comment:", error)
-    }
-  }
+  const TODOLIST_API_URL = 'http://localhost:5000/api/todos/';
+  const TODOLIST_LOGIN_URL = 'http://localhost:5000/api/login/';
 
   return (
-    <>
-      <h1>Todo List</h1>
-
-      <ul>
-        {todoList.map(todo => (
-          <TodoItem
-            key={todo.id}
-            todo={todo}
-            toggleDone={toggleDone}
-            deleteTodo={deleteTodo}
-            addNewComment={addNewComment}
-          />
-        ))}
-      </ul>
-
-      <div>
-        <input
-          type="text"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
+    <AuthProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <PrivateRoute>                               
+                <TodoList apiUrl={TODOLIST_API_URL}/>
+              </PrivateRoute>
+          } 
         />
-        <button onClick={addNewTodo}>
-          Add
-        </button>
-      </div>
-    </>
+        <Route 
+          path="/about" 
+          element={
+            <>
+              <h1>About</h1>
+              <p>This is a simple todo list application built with React and Flask.</p>
+              <a href="/">Back to Home</a>
+            </>
+          } 
+        />
+        <Route
+          path="/login"
+          element={
+            <LoginForm loginUrl={TODOLIST_LOGIN_URL} />
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+    </AuthProvider>
   )
 }
+
 
 export default App
